@@ -44,7 +44,7 @@
       height: 100%;
       object-fit: contain;
       display: block;
-      background: #000;
+      background: #000000;
     }
 
     .interaction-overlay {
@@ -57,15 +57,31 @@
       cursor: pointer;
       background: transparent;
     }
+
+    .error-msg {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #ff6b6b;
+      text-align: center;
+      font-size: 1rem;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.8);
+      border-radius: 8px;
+      border: 1px solid #ff6b6b;
+    }
   </style>
 </head>
 <body>
 
   <div class="player-wrapper">
-    <video id="player" autoplay loop playsinline controls preload="auto">
-      <source src="rickroll.mp4" type="video/mp4">
-      Your browser does not support the video tag.
-    </video>
+    <video id="player" src="rickroll.mp4" autoplay loop playsinline controls preload="auto"></video>
+    <div id="error" class="error-msg">
+      ⚠️ Could not load <code>rickroll.mp4</code>.<br>
+      Make sure the repo is set to <strong>Public</strong> and the file is in the same directory.
+    </div>
   </div>
 
   <div id="trigger-layer" class="interaction-overlay"></div>
@@ -73,42 +89,44 @@
   <script>
     const video = document.getElementById('player');
     const triggerLayer = document.getElementById('trigger-layer');
+    const errorMsg = document.getElementById('error');
 
-    function startInitialPlayback() {
+    video.addEventListener('error', () => {
+      errorMsg.style.display = 'block';
+    });
+
+    // Start video instantly (muted for browser policy compliance)
+    function startPlayback() {
       video.muted = true;
-      const playPromise = video.play();
-
-      if (playPromise !== undefined) {
-        playPromise.then(() => {
-          // Attempt unmuting immediately if browser policy allows
-          video.muted = false;
-          video.volume = 1.0;
-        }).catch(() => {
-          // Fall back to muted playback until first touch/click
-          video.muted = true;
-          video.play();
-        });
-      }
+      video.play().then(() => {
+        // Attempt unmuting right away
+        video.muted = false;
+      }).catch(() => {
+        // Keep muted until user taps the screen
+        video.muted = true;
+        video.play();
+      });
     }
 
-    function unlockAudioAndPlay() {
+    // Unmute on the very first click / tap anywhere
+    function unlockAudio() {
       video.muted = false;
       video.volume = 1.0;
-      video.play().catch(console.error);
+      video.play();
 
       if (triggerLayer) {
         triggerLayer.remove();
       }
 
-      window.removeEventListener('pointerdown', unlockAudioAndPlay);
-      window.removeEventListener('keydown', unlockAudioAndPlay);
-      window.removeEventListener('touchstart', unlockAudioAndPlay);
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
     }
 
-    window.addEventListener('DOMContentLoaded', startInitialPlayback);
-    window.addEventListener('pointerdown', unlockAudioAndPlay, { once: true });
-    window.addEventListener('keydown', unlockAudioAndPlay, { once: true });
-    window.addEventListener('touchstart', unlockAudioAndPlay, { once: true });
+    window.addEventListener('DOMContentLoaded', startPlayback);
+    window.addEventListener('pointerdown', unlockAudio, { once: true });
+    window.addEventListener('keydown', unlockAudio, { once: true });
+    window.addEventListener('touchstart', unlockAudio, { once: true });
   </script>
 </body>
 </html>
