@@ -68,19 +68,28 @@
       text-align: center;
       font-size: 1rem;
       padding: 20px;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.85);
       border-radius: 8px;
       border: 1px solid #ff6b6b;
+      z-index: 5;
     }
   </style>
 </head>
 <body>
 
   <div class="player-wrapper">
-    <video id="player" src="rickroll.mp4" autoplay loop playsinline controls preload="auto"></video>
+    <video 
+      id="player" 
+      src="https://raw.githubusercontent.com/VicRoger27/rickroll/main/rickroll.mp4" 
+      autoplay 
+      loop 
+      playsinline 
+      controls 
+      preload="auto">
+    </video>
     <div id="error" class="error-msg">
-      ⚠️ Could not load <code>rickroll.mp4</code>.<br>
-      Make sure the repo is set to <strong>Public</strong> and the file is in the same directory.
+      ⚠️ Could not load the video stream.<br>
+      Please check your network connection or repository access.
     </div>
   </div>
 
@@ -95,24 +104,23 @@
       errorMsg.style.display = 'block';
     });
 
-    // Start video instantly (muted for browser policy compliance)
+    // Start playback immediately
     function startPlayback() {
       video.muted = true;
       video.play().then(() => {
         // Attempt unmuting right away
         video.muted = false;
       }).catch(() => {
-        // Keep muted until user taps the screen
         video.muted = true;
         video.play();
       });
     }
 
-    // Unmute on the very first click / tap anywhere
+    // Unmute on first screen interaction
     function unlockAudio() {
       video.muted = false;
       video.volume = 1.0;
-      video.play();
+      video.play().catch(console.error);
 
       if (triggerLayer) {
         triggerLayer.remove();
