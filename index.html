@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>vopple.uk</title>
+  <title>Never Gonna Give You Up</title>
 
   <!-- Inline SVG Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%2366fcf1'/><stop offset='100%' stop-color='%2345a29e'/></linearGradient></defs><rect width='100' height='100' rx='25' fill='%230b0c10'/><path d='M40 70 A10 10 0 1 1 50 60 L50 25 L75 20 L75 35 L50 40' stroke='url(%23g)' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/><circle cx='40' cy='70' r='8' fill='url(%23g)'/><circle cx='65' cy='55' r='8' fill='url(%23g)'/><path d='M75 20 L75 55' stroke='url(%23g)' stroke-width='6' stroke-linecap='round'/></svg>">
@@ -58,22 +58,43 @@
       background: transparent;
     }
 
-    .status-badge {
+    .loader {
       position: absolute;
-      bottom: 12px;
-      right: 12px;
-      font-size: 0.75rem;
-      color: rgba(255, 255, 255, 0.4);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.1rem;
+      color: #66fcf1;
+      font-weight: 500;
       pointer-events: none;
-      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(102, 252, 241, 0.2);
+      border-top-color: #66fcf1;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
   </style>
 </head>
 <body>
 
   <div class="player-wrapper">
-    <video id="player" autoplay loop playsinline controls preload="auto"></video>
-    <div id="status" class="status-badge"></div>
+    <video id="player" autoplay loop playsinline controls></video>
+    <div id="loader" class="loader">
+      <div class="spinner"></div>
+      <span id="loader-text">Loading video...</span>
+    </div>
   </div>
 
   <div id="trigger-layer" class="interaction-overlay"></div>
@@ -81,53 +102,35 @@
   <script>
     const video = document.getElementById('player');
     const triggerLayer = document.getElementById('trigger-layer');
-    const statusText = document.getElementById('status');
+    const loader = document.getElementById('loader');
+    const loaderText = document.getElementById('loader-text');
 
-    // Ordered list of stream sources to try: relative repo files -> CDN mirror fallback
-    const sources = [
-      'rickroll.mp4',
-      'rickroll.3gp',
-      'rickroll.flv',
-      'https://raw.githubusercontent.com/VicRoger27/rickroll/main/rickroll.mp4',
-      'https://cdn.jsdelivr.net/gh/VicRoger27/rickroll@main/rickroll.mp4',
-      'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
-    ];
+    // List of local endpoints to try fetching as binary blob
+    const fileTargets = ['rickroll.mp4', 'rickroll.3gp', 'rickroll.flv'];
 
-    let currentSourceIndex = 0;
-
-    function tryLoadSource(index) {
-      if (index >= sources.length) {
-        statusText.textContent = 'All video sources failed to load.';
-        return;
+    async function loadVideoBlob() {
+      for (const target of fileTargets) {
+        try {
+          loaderText.textContent = `Fetching ${target}...`;
+          const response = await fetch(target);
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          
+          video.src = blobUrl;
+          video.muted = true;
+          
+          await video.play();
+          loader.style.display = 'none';
+          return;
+        } catch (err) {
+          console.warn(`Failed loading ${target}:`, err);
+        }
       }
-
-      const src = sources[index];
-      statusText.textContent = `Connecting to stream ${index + 1}...`;
-      video.src = src;
-      video.load();
-
-      video.muted = true;
-      const playPromise = video.play();
-      if (playPromise !== undefined) {
-        playPromise.then(() => {
-          statusText.textContent = '';
-        }).catch(() => {
-          // Autoplay waiting for interaction
-        });
-      }
+      loaderText.textContent = 'Failed to load video files.';
     }
 
-    video.addEventListener('error', () => {
-      console.warn(`Source ${sources[currentSourceIndex]} failed. Trying next source...`);
-      currentSourceIndex++;
-      tryLoadSource(currentSourceIndex);
-    });
-
-    video.addEventListener('playing', () => {
-      statusText.textContent = '';
-    });
-
-    // Unmute immediately on first interaction
     function unlockAudio() {
       video.muted = false;
       video.volume = 1.0;
@@ -142,7 +145,7 @@
       window.removeEventListener('touchstart', unlockAudio);
     }
 
-    window.addEventListener('DOMContentLoaded', () => tryLoadSource(0));
+    window.addEventListener('DOMContentLoaded', loadVideoBlob);
     window.addEventListener('pointerdown', unlockAudio, { once: true });
     window.addEventListener('keydown', unlockAudio, { once: true });
     window.addEventListener('touchstart', unlockAudio, { once: true });
