@@ -25,17 +25,18 @@
       align-items: center;
       justify-content: center;
       overflow: hidden;
+      user-select: none;
     }
 
     .player-wrapper {
       position: relative;
-      width: 90vw;
-      max-width: 960px;
+      width: 92vw;
+      max-width: 1000px;
       aspect-ratio: 16 / 9;
       background: #000000;
       border-radius: 16px;
       overflow: hidden;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(102, 252, 241, 0.15);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(102, 252, 241, 0.2);
     }
 
     video {
@@ -45,74 +46,74 @@
       display: block;
     }
 
-    .unmute-overlay {
-      position: absolute;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(31, 40, 51, 0.9);
-      border: 1px solid #66fcf1;
-      color: #ffffff;
-      padding: 12px 24px;
-      border-radius: 9999px;
-      font-size: 0.95rem;
-      font-weight: 600;
+    /* Invisible click trigger that covers the entire viewport until first interaction */
+    .interaction-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 9999;
       cursor: pointer;
-      backdrop-filter: blur(8px);
-      transition: all 0.2s ease-in-out;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      z-index: 10;
-    }
-
-    .unmute-overlay:hover {
-      background: #66fcf1;
-      color: #0b0c10;
-      transform: translateX(-50%) scale(1.05);
-    }
-
-    .hidden {
-      display: none;
+      background: transparent;
     }
   </style>
 </head>
 <body>
 
   <div class="player-wrapper">
-    <video id="rickroll-video" autoplay loop playsinline controls>
-      <source src="video.mp4" type="video/mp4">
+    <video id="player" autoplay loop playsinline controls preload="auto">
+      <source src="a.mp4" type="video/mp4">
       Your browser does not support the video tag.
     </video>
-    <button id="unmute-btn" class="unmute-overlay">
-      <span>🔊 Tap to Unmute & Enjoy</span>
-    </button>
   </div>
 
+  <div id="trigger-layer" class="interaction-overlay"></div>
+
   <script>
-    const video = document.getElementById('rickroll-video');
-    const unmuteBtn = document.getElementById('unmute-btn');
+    const video = document.getElementById('player');
+    const triggerLayer = document.getElementById('trigger-layer');
 
-    // Attempt autoplay with audio first; fallback to muted if blocked by browser policy
-    video.play().then(() => {
-      unmuteBtn.classList.add('hidden');
-    }).catch(() => {
-      video.muted = true;
-      video.play();
-      unmuteBtn.classList.remove('hidden');
-    });
-
-    unmuteBtn.addEventListener('click', () => {
+    function startFullPlayback() {
       video.muted = false;
-      video.play();
-      unmuteBtn.classList.add('hidden');
-    });
+      video.volume = 1.0;
+      const playPromise = video.play();
 
-    video.addEventListener('volumechange', () => {
-      if (!video.muted && video.volume > 0) {
-        unmuteBtn.classList.add('hidden');
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          if (triggerLayer) {
+            triggerLayer.remove();
+          }
+        }).catch(() => {
+          // If browser strictly blocks unmuted autoplay without gesture, start muted
+          video.muted = true;
+          video.play();
+        });
       }
-    });
+    }
+
+    // Attempt direct unmuted playback immediately on page load
+    window.addEventListener('DOMContentLoaded', startFullPlayback);
+    startFullPlayback();
+
+    // Catch the very first click, tap, or keypress anywhere on screen to force unmute & play
+    const forceUnmutePlay = () => {
+      video.muted = false;
+      video.volume = 1.0;
+      video.play().then(() => {
+        if (triggerLayer) {
+          triggerLayer.remove();
+        }
+      }).catch(console.error);
+
+      window.removeEventListener('pointerdown', forceUnmutePlay);
+      window.removeEventListener('keydown', forceUnmutePlay);
+      window.removeEventListener('touchstart', forceUnmutePlay);
+    };
+
+    window.addEventListener('pointerdown', forceUnmutePlay, { once: true });
+    window.addEventListener('keydown', forceUnmutePlay, { once: true });
+    window.addEventListener('touchstart', forceUnmutePlay, { once: true });
   </script>
 </body>
 </html>
