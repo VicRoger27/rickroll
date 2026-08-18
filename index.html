@@ -58,39 +58,22 @@
       background: transparent;
     }
 
-    .error-msg {
-      display: none;
+    .status-badge {
       position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      color: #ff6b6b;
-      text-align: center;
-      font-size: 1rem;
-      padding: 20px;
-      background: rgba(0, 0, 0, 0.85);
-      border-radius: 8px;
-      border: 1px solid #ff6b6b;
-      z-index: 5;
+      bottom: 12px;
+      right: 12px;
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.4);
+      pointer-events: none;
+      z-index: 10;
     }
   </style>
 </head>
 <body>
 
   <div class="player-wrapper">
-    <video 
-      id="player" 
-      src="https://raw.githubusercontent.com/VicRoger27/rickroll/main/rickroll.mp4" 
-      autoplay 
-      loop 
-      playsinline 
-      controls 
-      preload="auto">
-    </video>
-    <div id="error" class="error-msg">
-      ⚠️ Could not load the video stream.<br>
-      Please check your network connection or repository access.
-    </div>
+    <video id="player" autoplay loop playsinline controls preload="auto"></video>
+    <div id="status" class="status-badge"></div>
   </div>
 
   <div id="trigger-layer" class="interaction-overlay"></div>
@@ -98,25 +81,53 @@
   <script>
     const video = document.getElementById('player');
     const triggerLayer = document.getElementById('trigger-layer');
-    const errorMsg = document.getElementById('error');
+    const statusText = document.getElementById('status');
 
-    video.addEventListener('error', () => {
-      errorMsg.style.display = 'block';
-    });
+    // Ordered list of stream sources to try: relative repo files -> CDN mirror fallback
+    const sources = [
+      'rickroll.mp4',
+      'rickroll.3gp',
+      'rickroll.flv',
+      'https://raw.githubusercontent.com/VicRoger27/rickroll/main/rickroll.mp4',
+      'https://cdn.jsdelivr.net/gh/VicRoger27/rickroll@main/rickroll.mp4',
+      'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
+    ];
 
-    // Start playback immediately
-    function startPlayback() {
+    let currentSourceIndex = 0;
+
+    function tryLoadSource(index) {
+      if (index >= sources.length) {
+        statusText.textContent = 'All video sources failed to load.';
+        return;
+      }
+
+      const src = sources[index];
+      statusText.textContent = `Connecting to stream ${index + 1}...`;
+      video.src = src;
+      video.load();
+
       video.muted = true;
-      video.play().then(() => {
-        // Attempt unmuting right away
-        video.muted = false;
-      }).catch(() => {
-        video.muted = true;
-        video.play();
-      });
+      const playPromise = video.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          statusText.textContent = '';
+        }).catch(() => {
+          // Autoplay waiting for interaction
+        });
+      }
     }
 
-    // Unmute on first screen interaction
+    video.addEventListener('error', () => {
+      console.warn(`Source ${sources[currentSourceIndex]} failed. Trying next source...`);
+      currentSourceIndex++;
+      tryLoadSource(currentSourceIndex);
+    });
+
+    video.addEventListener('playing', () => {
+      statusText.textContent = '';
+    });
+
+    // Unmute immediately on first interaction
     function unlockAudio() {
       video.muted = false;
       video.volume = 1.0;
@@ -131,7 +142,7 @@
       window.removeEventListener('touchstart', unlockAudio);
     }
 
-    window.addEventListener('DOMContentLoaded', startPlayback);
+    window.addEventListener('DOMContentLoaded', () => tryLoadSource(0));
     window.addEventListener('pointerdown', unlockAudio, { once: true });
     window.addEventListener('keydown', unlockAudio, { once: true });
     window.addEventListener('touchstart', unlockAudio, { once: true });
